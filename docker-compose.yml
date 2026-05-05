@@ -1,0 +1,57 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9999:9999"
+    depends_on:
+      - api1
+      - api2
+    networks:
+      - rinha
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "20MB"
+
+  api1:
+    image: menon04/rinha-2026-golang:latest
+    environment:
+      REFS_PATH: /data/references.json.gz
+      MCC_PATH: /data/mcc_risk.json
+      NORM_PATH: /data/normalization.json
+      ADDR: ":8080"
+      GOMAXPROCS: "1"
+    volumes:
+      - ./resources:/data:ro
+    networks:
+      - rinha
+    deploy:
+      resources:
+        limits:
+          cpus: "0.45"
+          memory: "165MB"
+
+  api2:
+    image: menon04/rinha-2026-golang:latest
+    environment:
+      REFS_PATH: /data/references.json.gz
+      MCC_PATH: /data/mcc_risk.json
+      NORM_PATH: /data/normalization.json
+      ADDR: ":8080"
+      GOMAXPROCS: "1"
+    volumes:
+      - ./resources:/data:ro
+    networks:
+      - rinha
+    deploy:
+      resources:
+        limits:
+          cpus: "0.45"
+          memory: "165MB"
+
+networks:
+  rinha:
+    driver: bridge
