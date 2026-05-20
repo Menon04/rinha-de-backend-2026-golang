@@ -17,6 +17,7 @@ services:
           memory: "20MB"
 
   api1:
+    build: .
     image: menon04/rinha-2026-golang:latest
     environment:
       REFS_PATH: /data/references.json.gz
