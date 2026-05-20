@@ -1,4 +1,19 @@
 services:
+  data-init:
+    image: alpine:3.19
+    command: >
+      sh -c "
+        apk add --no-cache curl &&
+        mkdir -p /data &&
+        BASE=https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2026/main/resources &&
+        curl -fsSL \"$$BASE/mcc_risk.json\" -o /data/mcc_risk.json &&
+        curl -fsSL \"$$BASE/normalization.json\" -o /data/normalization.json &&
+        curl -fsSL https://github.com/zanfranceschi/rinha-de-backend-2026/raw/main/resources/references.json.gz -o /data/references.json.gz &&
+        echo 'data ready'
+      "
+    volumes:
+      - data:/data
+
   nginx:
     image: nginx:1.27-alpine
     volumes:
@@ -6,8 +21,10 @@ services:
     ports:
       - "9999:9999"
     depends_on:
-      - api1
-      - api2
+      api1:
+        condition: service_healthy
+      api2:
+        condition: service_healthy
     networks:
       - rinha
     deploy:
@@ -25,9 +42,18 @@ services:
       ADDR: ":8080"
       GOMAXPROCS: "1"
     volumes:
-      - ./resources:/data:ro
+      - data:/data:ro
     networks:
       - rinha
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ready || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -43,14 +69,26 @@ services:
       ADDR: ":8080"
       GOMAXPROCS: "1"
     volumes:
-      - ./resources:/data:ro
+      - data:/data:ro
     networks:
       - rinha
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ready || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     deploy:
       resources:
         limits:
           cpus: "0.45"
           memory: "165MB"
+
+volumes:
+  data:
 
 networks:
   rinha:
