@@ -6,10 +6,27 @@ import (
 	"os"
 )
 
-// Ref is a single reference vector with its label.
+// Ref is a quantized reference vector with its label.
+// Vectors are stored as uint8 (mapped from [0,1] → [0,255])
+// to reduce memory ~4x vs float32.
 type Ref struct {
-	Vector [14]float32
+	Vector [14]uint8
 	Fraud  bool
+}
+
+func Quantize(v [14]float32) [14]uint8 {
+	var u [14]uint8
+	for i := 0; i < 14; i++ {
+		s := v[i] * 255
+		if s < 0 {
+			s = 0
+		}
+		if s > 255 {
+			s = 255
+		}
+		u[i] = uint8(s)
+	}
+	return u
 }
 
 type rawRef struct {
@@ -18,6 +35,8 @@ type rawRef struct {
 }
 
 // LoadRefs loads and decompresses references.json.gz into memory.
+// LoadRefs loads and decompresses references.json.gz into memory using streaming
+// to avoid holding two copies of the data simultaneously.
 func LoadRefs(path string) ([]Ref, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -31,14 +50,20 @@ func LoadRefs(path string) ([]Ref, error) {
 	}
 	defer gz.Close()
 
-	var raw []rawRef
-	if err := json.NewDecoder(gz).Decode(&raw); err != nil {
+	dec := json.NewDecoder(gz)
+
+	// read opening '['
+	if _, err := dec.Token(); err != nil {
 		return nil, err
 	}
 
-	refs := make([]Ref, len(raw))
-	for i, r := range raw {
-		refs[i] = Ref{Vector: r.Vector, Fraud: r.Label == "fraud"}
+	refs := make([]Ref, 0, 3_000_000)
+	var raw rawRef
+	for dec.More() {
+		if err := dec.Decode(&raw); err != nil {
+			return nil, err
+		}
+		refs = append(refs, Ref{Vector: Quantize(raw.Vector), Fraud: raw.Label == "fraud"})
 	}
 	return refs, nil
 }
