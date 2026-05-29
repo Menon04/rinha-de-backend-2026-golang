@@ -53,12 +53,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 30s
     deploy:
       resources:
         limits:
           cpus: "0.45"
-          memory: "165MB"
+          memory: "210MB"
 
   api2:
     image: menon04/rinha-2026-golang:latest
@@ -80,12 +80,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 30s
     deploy:
       resources:
         limits:
           cpus: "0.45"
-          memory: "165MB"
+          memory: "210MB"
 
 volumes:
   data:

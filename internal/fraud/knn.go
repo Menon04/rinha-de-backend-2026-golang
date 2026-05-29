@@ -12,15 +12,16 @@ import (
 const k = 5
 
 type neighbor struct {
-	dist  float32
+	dist  uint32
 	fraud bool
 }
 
 // euclidean computes squared euclidean distance (no sqrt needed for ranking).
-func euclidean(a, b *[14]float32) float32 {
-	var sum float32
+// Works in uint8 quantized space — ordering is identical to float32 [0,1].
+func euclidean(a, b *[14]uint8) uint32 {
+	var sum uint32
 	for i := 0; i < 14; i++ {
-		d := a[i] - b[i]
+		d := uint32(a[i]) - uint32(b[i])
 		sum += d * d
 	}
 	return sum
@@ -28,6 +29,8 @@ func euclidean(a, b *[14]float32) float32 {
 
 // Score runs KNN with k=5 and returns fraud_score and approved.
 func Score(query [14]float32, refs []dataset.Ref) (float32, bool) {
+	queryU := dataset.Quantize(query)
+
 	workers := runtime.NumCPU()
 	if workers < 1 {
 		workers = 1
@@ -48,10 +51,10 @@ func Score(query [14]float32, refs []dataset.Ref) (float32, bool) {
 			}
 
 			top := make([]neighbor, 0, k+1)
-			maxDist := float32(math.MaxFloat32)
+			maxDist := uint32(math.MaxUint32)
 
 			for i := start; i < end; i++ {
-				d := euclidean(&query, &refs[i].Vector)
+				d := euclidean(&queryU, &refs[i].Vector)
 				if len(top) < k || d < maxDist {
 					top = append(top, neighbor{dist: d, fraud: refs[i].Fraud})
 					sort.Slice(top, func(a, b int) bool { return top[a].dist < top[b].dist })
